@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz Interface</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #e6e6e6;
+      font-size: 13px;
+    }
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+    .left-panel {
+      width: 400px;
+      background-color: #fff;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .left-panel .header {
+      background-color: #f4f4f4;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .left-panel .header span {
+      margin-left: 6px;
+    }
+    .left-panel .item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-size: 12px;
+    }
+    .quiz-item-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .quiz-title {
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .quiz-meta {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .quiz-description {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .left-panel .item:hover {
+      background-color: #f0f0f0;
+    }
+    .left-panel .item.completed {
+      background-color: #e8f5e9;
+    }
+    .right-panel {
+      flex: 1;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+    .right-header {
+      background-color: #f8f9fa;
+      color: black;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .right-subheader {
+      display: flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid #ccc;
+      background-color: #003865;
+      font-size: 12px;
+      color: white;
+      justify-content: flex-start;
+    }
+    .quiz-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0;
+      table-layout: fixed;
+    }
+    .quiz-table th,
+    .quiz-table td {
+      padding: 4px 5px;
+      text-align: left;
+      font-size: 11px;
+      vertical-align: top;
+    }
+    .quiz-table th {
+      background-color: #e6e6e6;
+      font-size: 11px;
+    }
+    .quiz-table .answer-cell {
+      width: 45%;
+    }
+    .quiz-table .question-cell {
+      width: 55%;
+      padding-left: 50px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #777;
+    }
+    .back-btn {
+      padding: 5px 8px;
+      margin: 6px;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .option-row {
+      border-bottom: 1px solid #eee;
+    }
+    .question-option-container {
+      display: flex;
+      gap: 11px;
+      font-size: 11px;
+    }
+    .question-text {
+      font-weight: bold;
+      color: #003865;
+      word-break: break-word;
+    }
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      margin: 4px 0;
+      gap: 8px;
+    }
+    .checkbox-option input[type="radio"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1px solid #003865;
+      border-radius: 3px;
+      margin-right: 6px;
+      position: relative;
+      cursor: pointer;
+      outline: none;
+    }
+    .checkbox-option input[type="radio"]:checked::before {
+      content: "✓";
+      position: absolute;
+      color: #003865;
+      font-weight: bold;
+      left: 2px;
+      top: -1px;
+    }
+    .void-option input[type="checkbox"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 1px solid #003865;
+      border-radius: 2px;
+      margin-right: 6px;
+      cursor: pointer;
+      position: relative;
+      background-color: white;
+    }
+    .void-option input[type="checkbox"]:checked {
+      background-color: #003865;
+    }
+    .void-option input[type="checkbox"]:checked::after {
+      content: "✓";
+      position: absolute;
+      color: white;
+      left: 2px;
+      top: -1px;
+      font-weight: bold;
+    }
+    textarea.answer-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 11px;
+      min-height: 60px;
+      resize: vertical;
+    }
+    .submit-container {
+      display: flex;
+      justify-content: flex-end;
+      padding: 12px;
+      border-top: 1px solid #eee;
+    }
+    .submit-btn {
+      padding: 6px 12px;
+      background-color: #003865;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .timer-display {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      background-color: #003865;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      z-index: 1000;
+    }
+    .submit-all-container {
+      padding: 12px;
+      border-top: 1px solid #eee;
+      position: sticky;
+      bottom: 0;
+      background: white;
+    }
+    .progress-indicator {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+      text-align: center;
+    }
+    .remaining-count {
+      font-size: 11px;
+      margin-left: 8px;
+      background-color: #003865;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .quiz-list-container {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .dropdown-container {
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      margin: 20px auto;
+    }
+    .dropdown-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #003865;
+      font-size: 14px;
+    }
+    .category-dropdown {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      background-color: white;
+    }
+    .limit-dropdown-container {
+      margin-top: 15px;
+    }
+    .limit-dropdown-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #003865;
+      font-size: 14px;
+    }
+    .limit-dropdown {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+      background-color: white;
+    }
+    .start-quiz-btn {
+      width: 100%;
+      padding: 10px;
+      background-color: #003865;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-top: 15px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    .start-quiz-btn:hover {
+      background-color: #002e57;
+    }
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-left: 35px;
+    }
+    .search-input {
+      width: 120px;
+      font-size: 10px;
+      background-color: transparent;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 4px;
+      display: flex;
+      outline: none;
+    }
+    .question-header th {
+      padding: 8px 12px;
+    }
+    .void-option {
+      margin-top: 8px;
+    }
+    .question-cell input[type="checkbox"] {
+      margin-right: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer" class="timer-display" style="display: none;">Time: 00:00</div>
+
+  <div id="categoryDropdown" class="dropdown-container">
+    <label for="categorySelect" class="dropdown-label">Select Quiz Category:</label>
+    <select id="categorySelect" class="category-dropdown">
+      <option value="all">All</option>
+      <option value="">Loading categories...</option>
+    </select>
+
+    <div class="limit-dropdown-container">
+      <label for="questionLimit" class="limit-dropdown-label">Number of Questions:</label>
+      <select id="questionLimit" class="limit-dropdown">
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="30">30</option>
+        <option value="40">40</option>
+        <option value="50">50</option>
+        <option value="60">60</option>
+        <option value="70">70</option>
+        <option value="80">80</option>
+        <option value="90">90</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+
+    <button id="startQuizBtn" class="start-quiz-btn">Start Quiz</button>
+  </div>
+
+  <div class="container" id="quizInterface" style="display: none;">
+    <div class="left-panel">
+      <button class="back-btn" onclick="window.location.href='index.html'">← Back to Home</button>
+      <div class="header">
+        <span>📝</span>
+        <span>Available Quizzes</span>
+        <span class="remaining-count" id="remaining-count">0 left</span>
+      </div>
+      <div class="quiz-list-container">
+        <div id="quiz-list"></div>
+      </div>
+      <div class="submit-all-container">
+        <button id="submit-all-quizzes" class="submit-btn" style="width: 100%;">Submit All Quizzes</button>
+        <div class="progress-indicator" id="progress-indicator">0/0 quizzes completed</div>
+      </div>
+    </div>
+    <div class="right-panel" id="right-panel">
+      <div class="empty-state" id="empty-state">
+        <h3>No Quiz Selected</h3>
+        <p>Select a quiz from the left panel to view details</p>
+      </div>
+      <div id="quiz-details" style="display: none;">
+        <div class="right-header">
+          <div>
+            <span id="quiz-date-time"></span>
+            <strong id="quiz-title"></strong>
+            <div class="quiz-description" id="quiz-description"></div>
+          </div>
+          <div id="close-quiz-details" style="cursor: pointer;">&times;</div>
+        </div>
+        <div class="right-subheader">
+          <strong>Quiz Questions</strong>
+        </div>
+        <table class="quiz-table">
+          <thead>
+            <tr class="question-header">
+              <th>Quiz Outcomes</th>
+              <th>
+                <div class="search-container">
+                  <div style="display:flex; align-items:center; gap:15px">
+                    <span>Void</span>
+                    <span>Description:</span>
+                    <input type="text" class="search-input" id="question-search" placeholder="Search...">
+                  </div>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody id="quiz-content">
+            <tr>
+              <td class="answer-cell">
+                <div class="checkbox-option">
+                  <input type="radio" id="option1" name="quiz-option" value="0" />
+                  <label for="option1">Option 1</label>
+                </div>
+                <div class="checkbox-option void-option">
+                  <input type="checkbox" id="void-option" name="quiz-option" value="void" />
+                  <label for="void-option">Void Option</label>
+                </div>
+              </td>
+              <td class="question-cell">
+                <span>Question description goes here.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="submit-container">
+          <button id="save-quiz" class="submit-btn">Save Progress</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="quiz.js"></script>
+</body>
+</html>
