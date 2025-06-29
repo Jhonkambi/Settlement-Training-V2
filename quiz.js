@@ -200,24 +200,50 @@ function displayQuestions() {
         row.className = 'option-row';
         row.dataset.questionIndex = qIndex;
         
-        // Answer cell
+        // Answer cell - only contains actual answer options
         const answerCell = document.createElement('td');
         answerCell.className = 'answer-cell';
         answerCell.innerHTML = generateAnswerOptions(question, qIndex);
         
-        // Question cell
+        // Question cell with integrated void checkbox
         const questionCell = document.createElement('td');
         questionCell.className = 'question-cell';
+        
+        // Create unique ID for the void checkbox
+        const voidId = `q${currentQuiz.index}_${qIndex}_void`;
+        
         questionCell.innerHTML = `
-            <span class="question-text">${question.text}</span>
+            <label class="void-checkbox-container">
+                <input type="checkbox" id="${voidId}" 
+                       class="void-checkbox" data-question="${qIndex}">
+                <span class="question-text">${question.text}</span>
+            </label>
         `;
         
         row.appendChild(answerCell);
         row.appendChild(questionCell);
         quizContent.appendChild(row);
+
+        // Add event listener for the void checkbox
+        const voidCheckbox = questionCell.querySelector('.void-checkbox');
+        voidCheckbox.addEventListener('change', function() {
+            // Unselect other options if void is checked
+            if (this.checked) {
+                const otherOptions = answerCell.querySelectorAll('input[type="radio"]');
+                otherOptions.forEach(opt => opt.checked = false);
+            }
+        });
+
+        // Add event listener to answer options
+        answerCell.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.checked) {
+                    voidCheckbox.checked = false;
+                }
+            });
+        });
     });
     
-    // Restore saved answers
     restoreAnswers();
 }
 
@@ -226,28 +252,18 @@ function generateAnswerOptions(question, qIndex) {
     let html = '';
     
     if (question.type === 'multiple-choice') {
-        // Regular options
         question.options.forEach((option, optIndex) => {
             const inputId = `q${quizIndex}_${qIndex}_opt${optIndex}`;
             html += `
                 <div class="checkbox-option">
                     <input type="radio" id="${inputId}" name="q${quizIndex}_${qIndex}" 
-                           value="${optIndex}" data-question="${qIndex}" data-option="${optIndex}" />
+                           value="${optIndex}" data-question="${qIndex}" />
                     <label for="${inputId}">${option}</label>
                 </div>
             `;
         });
-        
-        // Void option
-        const voidId = `q${quizIndex}_${qIndex}_void`;
-        html += `
-            <div class="checkbox-option">
-                <input type="radio" id="${voidId}" name="q${quizIndex}_${qIndex}" 
-                       value="void" data-question="${qIndex}" />
-                <label for="${voidId}">Void</label>
-            </div>
-        `;
-    } else if (question.type === 'yes-no') {
+    } 
+    else if (question.type === 'yes-no') {
         const yesId = `q${quizIndex}_${qIndex}_yes`;
         const noId = `q${quizIndex}_${qIndex}_no`;
         
@@ -263,14 +279,6 @@ function generateAnswerOptions(question, qIndex) {
                 <label for="${noId}">No</label>
             </div>
         `;
-    } else if (question.type === 'short-answer') {
-        const textareaId = `q${quizIndex}_${qIndex}_text`;
-        
-        html += `
-            <textarea id="${textareaId}" class="answer-input" 
-                      placeholder="Enter your answer..." 
-                      data-question="${qIndex}"></textarea>
-        `;
     }
     
     return html;
@@ -283,88 +291,94 @@ function saveCurrentQuiz() {
     const answers = {};
     let allAnswered = true;
     
-    // Collect answers
     currentQuiz.questions.forEach((question, qIndex) => {
-        if (question.type === 'multiple-choice' || question.type === 'yes-no') {
-            const selectedInput = document.querySelector(`input[name="q${quizIndex}_${qIndex}"]:checked`);
-            if (selectedInput) {
-                answers[qIndex] = {
-                    type: question.type,
-                    answer: selectedInput.value,
-                    isVoid: selectedInput.value === 'void'
-                };
-            } else {
-                allAnswered = false;
-            }
-        } else if (question.type === 'short-answer') {
-            const textArea = document.querySelector(`#q${quizIndex}_${qIndex}_text`);
-            if (textArea && textArea.value.trim()) {
-                answers[qIndex] = {
-                    type: question.type,
-                    answer: textArea.value.trim(),
-                    isVoid: false
-                };
-            } else {
-                allAnswered = false;
+        const voidCheckbox = document.querySelector(`.void-checkbox[data-question="${qIndex}"]`);
+        
+        if (voidCheckbox && voidCheckbox.checked) {
+            // Handle void selection
+            answers[qIndex] = {
+                type: question.type,
+                answer: 'void',
+                isVoid: true,
+                isCorrect: question.correctAnswer === 'Void' // Check if void is the correct answer
+            };
+        } else {
+            // Handle normal answers
+            if (question.type === 'multiple-choice' || question.type === 'yes-no') {
+                const selectedInput = document.querySelector(`input[name="q${quizIndex}_${qIndex}"]:checked`);
+                if (selectedInput) {
+                    answers[qIndex] = {
+                        type: question.type,
+                        answer: selectedInput.value,
+                        isVoid: false,
+                        isCorrect: checkAnswerCorrectness(question, selectedInput.value)
+                    };
+                } else {
+                    allAnswered = false;
+                }
+            } else if (question.type === 'short-answer') {
+                const textArea = document.querySelector(`#q${quizIndex}_${qIndex}_text`);
+                if (textArea && textArea.value.trim()) {
+                    answers[qIndex] = {
+                        type: question.type,
+                        answer: textArea.value.trim(),
+                        isVoid: false,
+                        isCorrect: textArea.value.trim().toLowerCase() === question.correctAnswer.toLowerCase()
+                    };
+                } else {
+                    allAnswered = false;
+                }
             }
         }
     });
     
-    // Save answers
-    userAnswers[quizIndex] = answers;
+    userAnswers[quizIndex] = answers; // Save answers for the current quiz
     
-    // Mark as completed if all questions are answered
     if (allAnswered) {
         completedQuizzes.add(quizIndex);
-        
-        // Calculate score for internal tracking
         const result = calculateQuizScore(currentQuiz, answers);
         quizResults[quizIndex] = result;
     }
     
-    // Update UI
     displayQuizList();
     updateProgress();
     saveUserProgress();
+}
+
+function checkAnswerCorrectness(question, userAnswer) {
+    if (question.type === 'multiple-choice') {
+        return parseInt(userAnswer) === question.correctIndex;
+    } else if (question.type === 'yes-no') {
+        return userAnswer === question.correctAnswer;
+    }
+    return false;
 }
 
 function calculateQuizScore(quiz, answers) {
     let correct = 0;
     let total = 0;
     let voidCount = 0;
-    
+
     quiz.questions.forEach((question, qIndex) => {
         const userAnswer = answers[qIndex];
-        if (!userAnswer || userAnswer.isVoid) {
-            voidCount++;
-            return;
-        }
-        
+        if (!userAnswer) return;
+
         total++;
         
-        if (question.type === 'multiple-choice') {
-            const correctIndex = question.correctIndex;
-            const userSelectedIndex = parseInt(userAnswer.answer);
-            if (userSelectedIndex === correctIndex) {
-                correct++;
-            }
-        } else if (question.type === 'yes-no') {
-            if (userAnswer.answer === question.correctAnswer) {
-                correct++;
-            }
-        } else if (question.type === 'short-answer') {
-            if (userAnswer.answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()) {
-                correct++;
-            }
+        if (userAnswer.isVoid) {
+            voidCount++;
+            if (userAnswer.isCorrect) correct++;
+        } else {
+            if (userAnswer.isCorrect) correct++;
         }
     });
-    
+
     return {
         correct,
         total,
         voidCount,
         score: correct,
-        percentage: total > 0 ? (correct / total) * 100 : 0
+        percentage: total > 0 ? Math.round((correct / total) * 100) : 0
     };
 }
 
@@ -377,11 +391,12 @@ function restoreAnswers() {
     Object.keys(answers).forEach(qIndex => {
         const answer = answers[qIndex];
         
-        if (answer.type === 'multiple-choice' || answer.type === 'yes-no') {
-            if (answer.answer) {
-                const input = document.querySelector(`input[name="q${quizIndex}_${qIndex}"][value="${answer.answer}"]`);
-                if (input) input.checked = true;
-            }
+        if (answer.isVoid) {
+            const voidCheckbox = document.querySelector(`.void-checkbox[data-question="${qIndex}"]`);
+            if (voidCheckbox) voidCheckbox.checked = true;
+        } else if (answer.type === 'multiple-choice' || answer.type === 'yes-no') {
+            const input = document.querySelector(`input[name="q${quizIndex}_${qIndex}"][value="${answer.answer}"]`);
+            if (input) input.checked = true;
         } else if (answer.type === 'short-answer') {
             const textArea = document.querySelector(`#q${quizIndex}_${qIndex}_text`);
             if (textArea) textArea.value = answer.answer || '';
@@ -488,27 +503,22 @@ function generateDetailedResults() {
                 
                 if (userAnswer) {
                     isVoid = userAnswer.isVoid;
+                    isCorrect = userAnswer.isCorrect;
                     
-                    if (!isVoid) {
+                    if (isVoid) {
+                        userAnswerText = 'Void';
+                        correctAnswer = question.correctAnswer === 'Void' ? 'Void' : question.correctAnswer;
+                    } else {
                         if (question.type === 'multiple-choice') {
                             correctAnswer = question.options[question.correctIndex];
-                            if (userAnswer.answer === 'void') {
-                                userAnswerText = 'Void';
-                            } else {
-                                userAnswerText = question.options[parseInt(userAnswer.answer)] || 'Invalid answer';
-                                isCorrect = parseInt(userAnswer.answer) === question.correctIndex;
-                            }
+                            userAnswerText = question.options[parseInt(userAnswer.answer)] || 'Invalid answer';
                         } else if (question.type === 'yes-no') {
                             correctAnswer = question.correctAnswer;
                             userAnswerText = userAnswer.answer;
-                            isCorrect = userAnswer.answer === question.correctAnswer;
                         } else if (question.type === 'short-answer') {
                             correctAnswer = question.correctAnswer;
                             userAnswerText = userAnswer.answer;
-                            isCorrect = userAnswer.answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim();
                         }
-                    } else {
-                        userAnswerText = 'Void';
                     }
                 }
                 
