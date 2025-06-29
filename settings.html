@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quiz Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f4f8;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+    }
+    header {
+      width: 100%;
+      padding: 15px 0;
+      background-color: #003865;
+      color: white;
+      text-align: center;
+    }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 0 15px;
+      width: 100%;
+    }
+    .settings-card {
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 12px 15px;
+      background-color: #f7f9fc;
+      border-bottom: 1px solid #e1e5eb;
+      font-weight: bold;
+      color: #003865;
+      font-size: 0.95em;
+    }
+    .card-body {
+      padding: 15px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      font-size: 0.9em;
+      border: none;
+      border-radius: 4px;
+      background-color: #003865;
+      color: white;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    .btn:hover {
+      background-color: #002e57;
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: #6c757d;
+    }
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+    .btn-danger {
+      background-color: #d9534f;
+    }
+    .btn-danger:hover {
+      background-color: #c9302c;
+    }
+    .btn-success {
+      background-color: #28a745;
+    }
+    .btn-success:hover {
+      background-color: #218838;
+    }
+    .quiz-list, .category-list {
+      list-style: none;
+    }
+    .quiz-item, .category-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e1e5eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9em;
+    }
+    .quiz-item:last-child, .category-item:last-child {
+      border-bottom: none;
+    }
+    .quiz-actions, .category-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .quiz-actions button, .category-actions button {
+      margin-left: 8px;
+      padding: 4px 8px;
+      font-size: 0.8em;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow-y: auto;
+      font-size: 0.9em;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    .form-control {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    select.form-control {
+      height: 36px;
+    }
+    textarea.form-control {
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    /* Enhanced Question Styling */
+    .question-type-selector {
+      margin: 15px 0;
+      border: 1px solid #e1e5eb;
+      border-radius: 6px;
+      padding: 15px;
+    }
+    .question-type-options {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .question-type-btn {
+      padding: 8px 16px;
+      border: 2px solid #003865;
+      background: white;
+      color: #003865;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .question-type-btn.active {
+      background: #003865;
+      color: white;
+    }
+    .question-content {
+      display: none;
+      padding: 15px;
+      border: 1px solid #e1e5eb;
+      border-radius: 5px;
+      background: #f8f9fa;
+    }
+    .question-content.active {
+      display: block;
+    }
+    .option-input-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .option-input-group input[type="radio"] {
+      margin: 0;
+    }
+    .yesno-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-container {
+      display: flex;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #e1e5eb;
+    }
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active {
+      border-bottom-color: #003865;
+      color: #003865;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .quiz-filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .quiz-select {
+      display: inline-block;
+      margin-right: 10px;
+    }
+    .quiz-checkbox {
+      margin: 0;
+      transform: scale(1.2);
+    }
+    .category-input-group {
+      display: flex;
+      gap: 8px;
+    }
+    .category-input-group input {
+      flex: 1;
+    }
+    .void-option {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border: 1px solid #e1e5eb;
+      border-radius: 4px;
+    }
+    .void-option label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 13px;
+      color: #666;
+    }
+    .void-reference {
+      margin-top: 8px;
+      width: 100%;
+    }
+    #importFileInput {
+      display: none;
+    }
+    .file-actions {
+      display: flex;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h2 style="font-size: 1.3em;">Settlement Training</h2>
+  </header>
+
+  <div class="container">
+    <a href="index.html" class="btn btn-secondary" style="margin-bottom: 15px;">Back to Home</a>
+    
+    <div class="tab-container">
+      <div class="tab active" data-tab="quiz">Quiz Management</div>
+      <div class="tab" data-tab="category">Category Management</div>
+    </div>
+
+    <div class="tab-content active" data-tab="quiz">
+      <div class="settings-card">
+        <div class="card-header">Quiz Actions</div>
+        <div class="card-body file-actions">
+          <button class="btn" id="addQuizBtn">Add New Quiz</button>
+          <button class="btn btn-secondary" id="manageQuizzesBtn">Manage Existing Quizzes</button>
+          <button class="btn btn-secondary" id="exportBtn">Export Data</button>
+          <button class="btn btn-secondary" id="importBtn">Import Data</button>
+          <input type="file" id="importFileInput" accept=".json">
+        </div>
+      </div>
+
+      <div class="settings-card" id="manageQuizzesSection" style="display: none;">
+        <div class="card-header">Your Quizzes</div>
+        <div class="card-body">
+          <div class="quiz-filters">
+            <div class="form-group">
+              <input type="text" id="quizSearch" class="form-control" placeholder="Search quizzes...">
+            </div>
+            <div class="form-group">
+              <select id="categoryFilter" class="form-control">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <button class="btn btn-secondary" id="selectAllBtn">Select All</button>
+              <button class="btn btn-danger" id="deleteSelectedBtn">Delete Selected</button>
+            </div>
+          </div>
+          <ul class="quiz-list" id="quizList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="category">
+      <div class="settings-card">
+        <div class="card-header">Add New Category</div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="newCategoryName">Category Name</label>
+            <div class="category-input-group">
+              <input type="text" id="newCategoryName" class="form-control" placeholder="Enter category name">
+              <button class="btn btn-success" id="addCategoryBtn">Add Category</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="card-header">Existing Categories</div>
+        <div class="card-body">
+          <ul class="category-list" id="categoryList"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" data-tab="void">
+      <div class="settings-card">
+        <div class="card-header">Add New Void</div>
+        <div class="card-body">
+          <div class="form-group">
+            <label for="newVoidName">Void Name</label>
+            <div class="category-input-group">
+              <input type="text" id="newVoidName" class="form-control" placeholder="Enter void name">
+              <button class="btn btn-success" id="addVoidBtn">Add Void</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="card-header">Existing Voids</div>
+        <div class="card-body">
+          <ul class="category-list" id="voidList"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quiz Modal -->
+  <div class="modal" id="addQuizModal">
+    <div class="modal-content">
+      <h2 style="font-size: 1.2em; margin-bottom: 12px;">Add New Quiz</h2>
+      <form id="quizForm">
+        <div class="form-group">
+          <label for="quizTitle">Quiz Title</label>
+          <input type="text" id="quizTitle" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="quizDescription">Description</label>
+          <textarea id="quizDescription" class="form-control"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="quizDateTime">Date and Time</label>
+          <input type="datetime-local" id="quizDateTime" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="quizCategory">Category</label>
+          <select id="quizCategory" class="form-control" required>
+            <option value="">Select a category</option>
+          </select>
+        </div>
+        <div id="questionsContainer"></div>
+        <button type="button" class="btn btn-secondary" id="addQuestionBtn">Add Question</button>
+        <div style="display: flex; gap: 8px; margin-top: 15px;">
+          <button type="submit" class="btn">Save Quiz</button>
+          <button type="button" class="btn btn-secondary" id="cancelAddQuiz">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>
