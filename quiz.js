@@ -1,5 +1,5 @@
 // Quiz Interface JavaScript
-// This connects to the settings system and manages quiz taking
+// Updated with proper void answer handling
 
 // Global variables
 let allQuizzes = [];
@@ -46,15 +46,12 @@ function setupEventListeners() {
     submitAllBtn.addEventListener('click', submitAllQuizzes);
     closeQuizDetails.addEventListener('click', closeCurrentQuiz);
     questionSearch.addEventListener('input', filterQuestions);
-    
-    // Category change event
     categorySelect.addEventListener('change', filterQuizzesByCategory);
 }
 
 function loadQuizzesFromStorage() {
     try {
         allQuizzes = JSON.parse(localStorage.getItem('quizzes') || '[]');
-        console.log('Loaded quizzes:', allQuizzes.length);
     } catch (error) {
         console.error('Error loading quizzes:', error);
         allQuizzes = [];
@@ -86,12 +83,9 @@ function loadCategoriesIntoDropdown() {
 
 function filterQuizzesByCategory() {
     const selectedCategory = categorySelect.value;
-    
-    if (selectedCategory === 'all') {
-        filteredQuizzes = [...allQuizzes];
-    } else {
-        filteredQuizzes = allQuizzes.filter(quiz => quiz.category === selectedCategory);
-    }
+    filteredQuizzes = selectedCategory === 'all' 
+        ? [...allQuizzes] 
+        : allQuizzes.filter(quiz => quiz.category === selectedCategory);
 }
 
 function startQuizSession() {
@@ -107,17 +101,13 @@ function startQuizSession() {
         return;
     }
     
-    // Limit the number of quizzes based on selection
     const limit = parseInt(questionLimit.value);
     if (limit < filteredQuizzes.length) {
         filteredQuizzes = shuffleArray([...filteredQuizzes]).slice(0, limit);
     }
     
-    // Hide category dropdown and show quiz interface
     categoryDropdown.style.display = 'none';
     quizInterface.style.display = 'flex';
-    
-    // Initialize quiz session
     completedQuizzes.clear();
     userAnswers = {};
     quizResults = [];
@@ -166,7 +156,6 @@ function selectQuiz(index) {
     currentQuiz = { ...filteredQuizzes[index], index };
     displayQuizDetails();
     
-    // Mark as selected visually
     document.querySelectorAll('.item').forEach((item, i) => {
         item.style.backgroundColor = i === index ? '#e3f2fd' : '';
     });
@@ -177,18 +166,14 @@ function displayQuizDetails() {
     
     emptyState.style.display = 'none';
     quizDetails.style.display = 'block';
-    
-    // Set quiz header info
     quizTitle.textContent = currentQuiz.title;
     quizDescription.textContent = currentQuiz.description || 'No description';
     quizDateTime.textContent = `${currentQuiz.date || 'No date'} ${currentQuiz.time || ''}`;
-    
-    // Display questions
     displayQuestions();
 }
 
 function displayQuestions() {
-    if (!currentQuiz || !currentQuiz.questions) {
+    if (!currentQuiz?.questions) {
         quizContent.innerHTML = '<tr><td colspan="2">No questions available</td></tr>';
         return;
     }
@@ -200,22 +185,17 @@ function displayQuestions() {
         row.className = 'option-row';
         row.dataset.questionIndex = qIndex;
         
-        // Answer cell - only contains actual answer options
         const answerCell = document.createElement('td');
         answerCell.className = 'answer-cell';
         answerCell.innerHTML = generateAnswerOptions(question, qIndex);
         
-        // Question cell with integrated void checkbox
         const questionCell = document.createElement('td');
         questionCell.className = 'question-cell';
-        
-        // Create unique ID for the void checkbox
         const voidId = `q${currentQuiz.index}_${qIndex}_void`;
         
         questionCell.innerHTML = `
             <label class="void-checkbox-container">
-                <input type="checkbox" id="${voidId}" 
-                       class="void-checkbox" data-question="${qIndex}">
+                <input type="checkbox" id="${voidId}" class="void-checkbox" data-question="${qIndex}">
                 <span class="question-text">${question.text}</span>
             </label>
         `;
@@ -224,20 +204,17 @@ function displayQuestions() {
         row.appendChild(questionCell);
         quizContent.appendChild(row);
 
-        // Add event listener for the void checkbox
         const voidCheckbox = questionCell.querySelector('.void-checkbox');
         voidCheckbox.addEventListener('change', function() {
-            // Unselect other options if void is checked
             if (this.checked) {
-                const otherOptions = answerCell.querySelectorAll('input[type="radio"]');
-                otherOptions.forEach(opt => opt.checked = false);
+                answerCell.querySelectorAll('input[type="radio"]').forEach(opt => opt.checked = false);
+                answerCell.querySelectorAll('textarea').forEach(t => t.value = '');
             }
         });
 
-        // Add event listener to answer options
-        answerCell.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                if (this.checked) {
+        answerCell.querySelectorAll('input[type="radio"], textarea').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.checked || this.tagName === 'TEXTAREA') {
                     voidCheckbox.checked = false;
                 }
             });
@@ -257,26 +234,29 @@ function generateAnswerOptions(question, qIndex) {
             html += `
                 <div class="checkbox-option">
                     <input type="radio" id="${inputId}" name="q${quizIndex}_${qIndex}" 
-                           value="${optIndex}" data-question="${qIndex}" />
+                           value="${optIndex}" data-question="${qIndex}">
                     <label for="${inputId}">${option}</label>
                 </div>
             `;
         });
-    } 
-    else if (question.type === 'yes-no') {
-        const yesId = `q${quizIndex}_${qIndex}_yes`;
-        const noId = `q${quizIndex}_${qIndex}_no`;
-        
+    } else if (question.type === 'yes-no') {
         html += `
             <div class="checkbox-option">
-                <input type="radio" id="${yesId}" name="q${quizIndex}_${qIndex}" 
-                       value="Yes" data-question="${qIndex}" />
-                <label for="${yesId}">Yes</label>
+                <input type="radio" id="q${quizIndex}_${qIndex}_yes" name="q${quizIndex}_${qIndex}" 
+                       value="Yes" data-question="${qIndex}">
+                <label for="q${quizIndex}_${qIndex}_yes">Yes</label>
             </div>
             <div class="checkbox-option">
-                <input type="radio" id="${noId}" name="q${quizIndex}_${qIndex}" 
-                       value="No" data-question="${qIndex}" />
-                <label for="${noId}">No</label>
+                <input type="radio" id="q${quizIndex}_${qIndex}_no" name="q${quizIndex}_${qIndex}" 
+                       value="No" data-question="${qIndex}">
+                <label for="q${quizIndex}_${qIndex}_no">No</label>
+            </div>
+        `;
+    } else if (question.type === 'short-answer') {
+        html += `
+            <div class="checkbox-option">
+                <textarea id="q${quizIndex}_${qIndex}_text" class="short-answer" 
+                          data-question="${qIndex}" placeholder="Enter your answer"></textarea>
             </div>
         `;
     }
@@ -293,51 +273,44 @@ function saveCurrentQuiz() {
     
     currentQuiz.questions.forEach((question, qIndex) => {
         const voidCheckbox = document.querySelector(`.void-checkbox[data-question="${qIndex}"]`);
+        const answer = { type: question.type };
         
-        if (voidCheckbox && voidCheckbox.checked) {
-            // Handle void selection
-            answers[qIndex] = {
-                type: question.type,
-                answer: 'void',
-                isVoid: true,
-                isCorrect: question.correctAnswer === 'Void' // Check if void is the correct answer
-            };
+        if (voidCheckbox?.checked) {
+            answer.answer = 'Void';
+            answer.isVoid = true;
+            answer.isCorrect = (question.correctAnswer === 'Void');
         } else {
-            // Handle normal answers
             if (question.type === 'multiple-choice' || question.type === 'yes-no') {
                 const selectedInput = document.querySelector(`input[name="q${quizIndex}_${qIndex}"]:checked`);
                 if (selectedInput) {
-                    answers[qIndex] = {
-                        type: question.type,
-                        answer: selectedInput.value,
-                        isVoid: false,
-                        isCorrect: checkAnswerCorrectness(question, selectedInput.value)
-                    };
+                    answer.answer = selectedInput.value;
+                    answer.isVoid = false;
+                    answer.isCorrect = checkAnswerCorrectness(question, selectedInput.value);
                 } else {
                     allAnswered = false;
+                    return;
                 }
             } else if (question.type === 'short-answer') {
                 const textArea = document.querySelector(`#q${quizIndex}_${qIndex}_text`);
-                if (textArea && textArea.value.trim()) {
-                    answers[qIndex] = {
-                        type: question.type,
-                        answer: textArea.value.trim(),
-                        isVoid: false,
-                        isCorrect: textArea.value.trim().toLowerCase() === question.correctAnswer.toLowerCase()
-                    };
+                if (textArea?.value.trim()) {
+                    answer.answer = textArea.value.trim();
+                    answer.isVoid = false;
+                    answer.isCorrect = checkAnswerCorrectness(question, textArea.value.trim());
                 } else {
                     allAnswered = false;
+                    return;
                 }
             }
         }
+        
+        answers[qIndex] = answer;
     });
     
-    userAnswers[quizIndex] = answers; // Save answers for the current quiz
+    userAnswers[quizIndex] = answers;
     
     if (allAnswered) {
         completedQuizzes.add(quizIndex);
-        const result = calculateQuizScore(currentQuiz, answers);
-        quizResults[quizIndex] = result;
+        quizResults[quizIndex] = calculateQuizScore(currentQuiz, answers);
     }
     
     displayQuizList();
@@ -346,10 +319,17 @@ function saveCurrentQuiz() {
 }
 
 function checkAnswerCorrectness(question, userAnswer) {
+    if (userAnswer === 'Void') {
+        // Void is correct if the question's correct answer is Void
+        return question.correctAnswer === 'Void';
+    }
+    
     if (question.type === 'multiple-choice') {
         return parseInt(userAnswer) === question.correctIndex;
     } else if (question.type === 'yes-no') {
         return userAnswer === question.correctAnswer;
+    } else if (question.type === 'short-answer') {
+        return userAnswer.toLowerCase() === question.correctAnswer.toLowerCase();
     }
     return false;
 }
@@ -367,9 +347,11 @@ function calculateQuizScore(quiz, answers) {
         
         if (userAnswer.isVoid) {
             voidCount++;
-            if (userAnswer.isCorrect) correct++;
-        } else {
-            if (userAnswer.isCorrect) correct++;
+            if (userAnswer.isCorrect) {
+                correct++;
+            }
+        } else if (userAnswer.isCorrect) {
+            correct++;
         }
     });
 
@@ -409,33 +391,26 @@ function closeCurrentQuiz() {
     emptyState.style.display = 'flex';
     quizDetails.style.display = 'none';
     
-    // Clear selection highlighting
     document.querySelectorAll('.item').forEach(item => {
         item.style.backgroundColor = '';
     });
 }
 
 function updateRemainingCount() {
-    const remaining = filteredQuizzes.length - completedQuizzes.size;
-    remainingCount.textContent = `${remaining} left`;
+    remainingCount.textContent = `${filteredQuizzes.length - completedQuizzes.size} left`;
 }
 
 function updateProgress() {
-    const completed = completedQuizzes.size;
-    const total = filteredQuizzes.length;
-    progressIndicator.textContent = `${completed}/${total} quizzes completed`;
+    progressIndicator.textContent = `${completedQuizzes.size}/${filteredQuizzes.length} quizzes completed`;
     updateRemainingCount();
 }
 
 function filterQuestions() {
     const searchTerm = questionSearch.value.toLowerCase();
-    const rows = document.querySelectorAll('#quiz-content tr');
-    
-    rows.forEach(row => {
+    document.querySelectorAll('#quiz-content tr').forEach(row => {
         const questionText = row.querySelector('.question-text');
         if (questionText) {
-            const matches = questionText.textContent.toLowerCase().includes(searchTerm);
-            row.style.display = matches ? '' : 'none';
+            row.style.display = questionText.textContent.toLowerCase().includes(searchTerm) ? '' : 'none';
         }
     });
 }
@@ -447,9 +422,9 @@ function startTimer() {
     timer = setInterval(() => {
         const now = new Date();
         const elapsed = Math.floor((now - startTime) / 1000);
-        const minutes = Math.floor(elapsed / 60);
-        const seconds = elapsed % 60;
-        timerDisplay.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const seconds = (elapsed % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `Time: ${minutes}:${seconds}`;
     }, 1000);
 }
 
@@ -467,114 +442,92 @@ function submitAllQuizzes() {
         return;
     }
     
-    if (completedQuizzes.size < filteredQuizzes.length) {
-        if (!confirm(`You have only completed ${completedQuizzes.size} out of ${filteredQuizzes.length} quizzes. Submit anyway?`)) {
-            return;
-        }
+    if (completedQuizzes.size < filteredQuizzes.length && 
+        !confirm(`You have only completed ${completedQuizzes.size} out of ${filteredQuizzes.length} quizzes. Submit anyway?`)) {
+        return;
     }
     
-    // Generate final results
     const finalResults = generateDetailedResults();
-    
-    // Stop timer
     stopTimer();
-    
-    // Save final results and redirect to results page
     saveFinalResults(finalResults);
-    
-    // Redirect to results page
     window.location.href = 'results.html';
 }
 
 function generateDetailedResults() {
-    const results = [];
-    
-    filteredQuizzes.forEach((quiz, index) => {
-        if (completedQuizzes.has(index) && quizResults[index] && userAnswers[index]) {
-            const quizResult = quizResults[index];
-            const answers = userAnswers[index];
+    return filteredQuizzes.map((quiz, index) => {
+        if (!completedQuizzes.has(index) || !quizResults[index] || !userAnswers[index]) {
+            return null;
+        }
+
+        const quizResult = quizResults[index];
+        const answers = userAnswers[index];
+        
+        const detailedResults = quiz.questions.map((question, qIndex) => {
+            const userAnswer = answers[qIndex];
             
-            const detailedResults = quiz.questions.map((question, qIndex) => {
-                const userAnswer = answers[qIndex];
-                let isCorrect = false;
-                let correctAnswer = '';
-                let userAnswerText = 'No answer provided';
-                let isVoid = false;
+            let userAnswerText = 'No answer provided';
+            let correctAnswer = question.correctAnswer;
+            let isCorrect = false;
+            let isVoid = false;
+
+            if (userAnswer) {
+                isVoid = userAnswer.isVoid;
                 
-                if (userAnswer) {
-                    isVoid = userAnswer.isVoid;
+                if (isVoid) {
+                    userAnswerText = 'Void';
                     isCorrect = userAnswer.isCorrect;
-                    
-                    if (isVoid) {
-                        userAnswerText = 'Void';
-                        correctAnswer = question.correctAnswer === 'Void' ? 'Void' : question.correctAnswer;
-                    } else {
-                        if (question.type === 'multiple-choice') {
-                            correctAnswer = question.options[question.correctIndex];
-                            userAnswerText = question.options[parseInt(userAnswer.answer)] || 'Invalid answer';
-                        } else if (question.type === 'yes-no') {
-                            correctAnswer = question.correctAnswer;
-                            userAnswerText = userAnswer.answer;
-                        } else if (question.type === 'short-answer') {
-                            correctAnswer = question.correctAnswer;
-                            userAnswerText = userAnswer.answer;
-                        }
-                    }
+                    correctAnswer = 'Void';
+                } else {
+                    userAnswerText = userAnswer.answer;
+                    isCorrect = userAnswer.isCorrect;
                 }
                 
-                return {
-                    question: question.text,
-                    userAnswer: userAnswerText,
-                    correctAnswer: correctAnswer,
-                    isCorrect: isCorrect,
-                    isVoid: isVoid
-                };
-            });
-            
-            results.push({
-                quizTitle: quiz.title,
-                score: quizResult.score,
-                totalQuestions: quizResult.total,
-                percentage: quizResult.percentage,
-                dateTaken: new Date().toISOString(),
-                results: detailedResults
-            });
-        }
-    });
-    
-    return results;
+                if (question.type === 'multiple-choice' && !isVoid) {
+                    correctAnswer = question.options[question.correctIndex];
+                }
+            }
+
+            return {
+                question: question.text,
+                userAnswer: userAnswerText,
+                correctAnswer: correctAnswer,
+                isCorrect: isCorrect,
+                isVoid: isVoid
+            };
+        }).filter(Boolean);
+
+        return {
+            quizTitle: quiz.title,
+            score: quizResult.score,
+            totalQuestions: quizResult.total,
+            percentage: quizResult.percentage,
+            dateTaken: new Date().toISOString(),
+            results: detailedResults,
+            voidCount: quizResult.voidCount
+        };
+    }).filter(Boolean);
 }
 
 function saveFinalResults(results) {
     try {
-        localStorage.setItem('allQuizResults', JSON.stringify(results));
-        
-        // Also save to quiz results history
-        const savedResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
-        savedResults.push({
-            timestamp: new Date().toISOString(),
-            sessionId: Date.now(),
-            results: results,
-            totalQuizzes: results.length,
-            averageScore: results.reduce((sum, r) => sum + r.percentage, 0) / results.length
-        });
-        localStorage.setItem('quizResults', JSON.stringify(savedResults));
+        const existingResults = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+        existingResults.push(...results);
+        localStorage.setItem('quizHistory', JSON.stringify(existingResults));
     } catch (error) {
-        console.error('Error saving results:', error);
+        console.error('Error saving final results:', error);
     }
 }
 
 function saveUserProgress() {
     try {
-        const progress = {
+        localStorage.setItem('quizProgress', JSON.stringify({
             userAnswers,
             completedQuizzes: Array.from(completedQuizzes),
             quizResults,
-            timestamp: new Date().toISOString()
-        };
-        localStorage.setItem('quizProgress', JSON.stringify(progress));
+            startTime
+        }));
     } catch (error) {
-        console.error('Error saving progress:', error);
+        console.error('Error saving user progress:', error);
     }
 }
 
@@ -582,19 +535,16 @@ function loadUserProgress() {
     try {
         const progress = JSON.parse(localStorage.getItem('quizProgress') || '{}');
         if (progress.userAnswers) {
-            userAnswers = progress.userAnswers;
+            userAnswers = progress.userAnswers || {};
             completedQuizzes = new Set(progress.completedQuizzes || []);
             quizResults = progress.quizResults || [];
+            startTime = progress.startTime ? new Date(progress.startTime) : null;
+            
+            if (startTime && (new Date() - startTime) / 1000 < 3600) {
+                startTimer();
+            }
         }
     } catch (error) {
-        console.error('Error loading progress:', error);
+        console.error('Error loading user progress:', error);
     }
 }
-
-// Export functions for potential external use
-window.quizInterface = {
-    startQuizSession,
-    saveCurrentQuiz,
-    submitAllQuizzes,
-    loadQuizzesFromStorage
-};
